@@ -39,8 +39,11 @@ int process_sig(float *output, int *in_cha_signal, int *in_chb_signal, int dec_f
 int main(int nargs, char** args)
 {	
 	// initialise device
+	fprintf(stderr,"Initialising\n");
 	assert(osc_fpga_init()==0);
+	fprintf(stderr,"Resetting\n");
 	osc_fpga_reset();
+	fprintf(stderr,"Calibrating\n");
 	rp_read_calib_params(&calibr);
 	
 	// configure acquisition settings
@@ -50,6 +53,7 @@ int main(int nargs, char** args)
 		decim_enum = atoi(args[1]);
 	if ((decim_enum<0)||(decim_enum> 5))
 		decim_enum = 0;
+	int decim = osc_fpga_cnv_time_range_to_dec(decim_enum);
 	osc_fpga_update_params(0, trig_chan, 0, 
                            0, 0.5, decim_enum,
                            1, 1,
@@ -58,12 +62,16 @@ int main(int nargs, char** args)
                            0, 0,
                            0, 0,
                            0);
+	float fs = 125.0e6 / decim;
+	fprintf(stderr,"Decim %u, expected time %.2f ms\n", decim, 1e9/fs);
 	
 	// GO!!
 	int trig = osc_fpga_cnv_trig_source(0 /*WAIT*/, trig_chan, 0 /*PGT*/);
+	fprintf(stderr,"Arming trigger\n");
 	osc_fpga_arm_trigger();
 	osc_fpga_set_trigger(trig);
 	usleep(1);
+	fprintf(stderr,"Waiting for data...\n");
 	
 	// wait for trigger
 	while (!osc_fpga_triggered())
@@ -72,11 +80,13 @@ int main(int nargs, char** args)
 	// get pointer to data
 	int *ptrA, *ptrB;
 	osc_fpga_get_sig_ptr(&ptrA, &ptrB);
+	fprintf(stderr,"Data pointers %p %p\n", ptrA, ptrB);
 	// copy data to local memory
 	float *output = calloc(SIGNAL_LENGTH, 3*sizeof(float));
 	process_sig(output, ptrA, ptrB, osc_fpga_cnv_time_range_to_dec(decim_enum));
 	// binary ejection to stdout
 	fwrite(output,3*sizeof(float),SIGNAL_LENGTH,stdout);
+	fprintf(stderr,"Done\n");
 	
 	// clean-up
 	free(output);
