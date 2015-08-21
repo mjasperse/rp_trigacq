@@ -71,15 +71,18 @@ int main(int nargs, char** args)
 	osc_fpga_arm_trigger();
 	osc_fpga_set_trigger(trig);
 	usleep(1);
-	fprintf(stderr,"Waiting for data...\n");
+	fprintf(stderr,"Waiting for data...  ");
 	
 	// wait for trigger
-	int retries = 60*1000; // 60s
+	int retries = 60*100; // 60s
 	while (retries && !osc_fpga_triggered())
 	{
-		usleep(1000);
-		 --retries;
+		usleep(10000);
+		--retries;
+		if (retries % 100 == 0)
+			fprintf(stderr, "#");
 	}
+	fprintf(stderr,"\n");
 	// waited too long, abort
 	if (retries == 0)
 	{
