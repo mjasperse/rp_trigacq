@@ -74,8 +74,19 @@ int main(int nargs, char** args)
 	fprintf(stderr,"Waiting for data...\n");
 	
 	// wait for trigger
-	while (!osc_fpga_triggered())
+	int retries = 60*1000; // 60s
+	while (retries && !osc_fpga_triggered())
+	{
 		usleep(1000);
+		 --retries;
+	}
+	// waited too long, abort
+	if (retries == 0)
+	{
+		fprintf(stderr,"Aborted acquisition.\n");
+		osc_fpga_exit();
+		return 1;
+	}
 	
 	// get pointer to data
 	int *ptrA, *ptrB;
